@@ -12,8 +12,16 @@ fn main() {
 		if input == "exit" || input == "quit" {
 			break;
 		}
-		let command = Command::new(input).output().expect("Launch command failed");
-		println!("{}", String::from_utf8_lossy(&command.stdout));
+		let mut process = Command::new(input);
+		match process.spawn() {
+			Ok(mut child) => {
+				let ecode = child.wait().expect("Wait error");
+				println!("{}", ecode);
+			}
+			Err(e) => {
+				eprintln!("Spawn error : {}", e);
+			}
+		}
 	}
 	println!("Bye");
 }

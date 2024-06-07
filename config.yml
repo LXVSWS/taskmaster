@@ -1,6 +1,6 @@
 programs:
-  nginx:
-    cmd: "/usr/local/bin/nginx -c /etc/nginx/test.conf"
+  python_server:
+    cmd: "python3 -m http.server 8080"
     numprocs: 1
     umask: 022
     workingdir: /tmp
@@ -13,8 +13,8 @@ programs:
     starttime: 5
     stopsignal: TERM
     stoptime: 10
-    stdout: /tmp/nginx.stdout
-    stderr: /tmp/nginx.stderr
+    stdout: /tmp/taskmaster1.stdout
+    stderr: /tmp/taskmaster1.stderr
     env:
       STARTED_BY: taskmaster
       ANSWER: 42
@@ -25,10 +25,11 @@ programs:
     workingdir: /tmp
     autostart: true
     autorestart: unexpected
-    exitcodes: 0
+    exitcodes:
+      - 0
     startretries: 3
     starttime: 5
     stopsignal: USR1
     stoptime: 10
-    stdout: /tmp/vgsworker.stdout
-    stderr: /tmp/vgsworker.stderr
+    stdout: /tmp/taskmaster2.stdout
+    stderr: /tmp/taskmaster2.stderr

@@ -45,7 +45,7 @@ fn control_shell(config: Config) {
             continue;
         }
 		match cmd[0] {
-			"stop" | "exit" | "quit" => break,
+			"exit" | "quit" => break,
 			"status" => {
 				for (program_name, config_values)  in &config.programs {
 					if running_processes.contains_key(program_name) {
@@ -76,7 +76,7 @@ fn control_shell(config: Config) {
 						.stderr(File::create("stderr.log").expect("Failed to create stderr.log"))
 						.spawn();
 					match process {
-						Ok(mut child) => {
+						Ok(child) => {
 							running_processes.insert(program_name.to_string(), child);
 							println!("Started {}", program_name);
 						}
@@ -89,8 +89,28 @@ fn control_shell(config: Config) {
 					println!("Program not found");
 				}
 			}
+			"stop" => {
+				if cmd.len() < 2 {
+					println!("Please specify a program to stop");
+					continue;
+				}
+				let program_name = cmd[1].to_string();
+				if let Some(mut child) = running_processes.remove(&program_name) {
+					match child.kill() {
+						Ok(_) => {
+							println!("Killed {}", program_name);
+						}
+						Err(e) => {
+							eprintln!("Failed to kill {}: {}", program_name, e);
+							running_processes.insert(program_name, child);
+						}
+					}
+				} else {
+					println!("Program not found or not running");
+				}
+			}
 			_ => {
-				println!("Unknow command");
+				println!("Unknown command");
 			}
 		}
 	}

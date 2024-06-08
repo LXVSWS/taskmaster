@@ -1,6 +1,6 @@
 programs:
-  python_server:
-    cmd: "python3 -m http.server 8080"
+  test:
+    cmd: "tail -f /dev/null"
     numprocs: 1
     umask: 022
     workingdir: /tmp
@@ -18,8 +18,8 @@ programs:
     env:
       STARTED_BY: taskmaster
       ANSWER: 42
-  vogsphere:
-    cmd: "/usr/local/bin/vogsphere-worker --no-prefork"
+  while:
+    cmd: "while true; do echo 'Running...'; sleep 5; done"
     numprocs: 8
     umask: 077
     workingdir: /tmp

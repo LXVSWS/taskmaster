@@ -1,16 +1,14 @@
 programs:
   test:
     cmd: "tail -f /dev/null"
-    numprocs: 1
-    umask: 022
-    workingdir: /tmp
+    numprocs: 8
     autostart: true
     autorestart: unexpected
     exitcodes:
       - 0
       - 2
-    startretries: 3
     starttime: 5
+    startretries: 3
     stopsignal: TERM
     stoptime: 10
     stdout: /tmp/taskmaster1.stdout
@@ -18,18 +16,23 @@ programs:
     env:
       STARTED_BY: taskmaster
       ANSWER: 42
-  while:
-    cmd: "while true; do echo 'Running...'; sleep 5; done"
-    numprocs: 8
-    umask: 077
     workingdir: /tmp
+    umask: 022
+  server:
+    cmd: "python3 -m http.server"
+    numprocs: 1
     autostart: true
     autorestart: unexpected
     exitcodes:
       - 0
-    startretries: 3
     starttime: 5
+    startretries: 3
     stopsignal: USR1
     stoptime: 10
     stdout: /tmp/taskmaster2.stdout
     stderr: /tmp/taskmaster2.stderr
+    env:
+      STARTED_BY: taskmaster
+      ANSWER: 42
+    workingdir: /tmp
+    umask: 077

@@ -33,6 +33,18 @@ fn parsing() -> Config {
 	config
 }
 
+fn start_process(program: &Program) -> Result<Child, std::io::Error> {
+	let mut command = program.cmd.split_whitespace();
+	let executable = command.next().expect("Executable not found");
+	let args: Vec<&str> = command.collect();
+	Command::new(executable)
+		.args(args)
+		.stdin(Stdio::null())
+		.stdout(File::create(&program.stdout)?)
+		.stderr(File::create(&program.stderr)?)
+		.spawn()
+}
+
 fn control_shell(config: Config) {
 	let mut running_processes: HashMap<String, Child> = HashMap::new();
 	loop {
@@ -47,7 +59,7 @@ fn control_shell(config: Config) {
 		match cmd[0] {
 			"exit" | "quit" => break,
 			"status" => {
-				for (program_name, config_values)  in &config.programs {
+				for (program_name, _config_values) in &config.programs {
 					if running_processes.contains_key(program_name) {
                         println!("{} status: running", program_name);
                     } else {
@@ -66,16 +78,7 @@ fn control_shell(config: Config) {
                         println!("Program {} is already running", program_name);
                         continue;
                     }
-					let mut command = program.cmd.split_whitespace();
-					let executable = command.next().expect("Executable not found");
-					let args: Vec<&str> = command.collect();
-					let mut process = Command::new(executable)
-						.args(args)
-						.stdin(Stdio::null())
-						.stdout(File::create("stdout.log").expect("Failed to create stdout.log"))
-						.stderr(File::create("stderr.log").expect("Failed to create stderr.log"))
-						.spawn();
-					match process {
+					match start_process(&program) {
 						Ok(child) => {
 							running_processes.insert(program_name.to_string(), child);
 							println!("Started {}", program_name);

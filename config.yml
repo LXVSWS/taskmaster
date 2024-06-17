@@ -1,38 +1,37 @@
-programs:
-  test:
-    cmd: "tail -f /dev/null"
-    numprocs: 8
-    autostart: true
-    autorestart: unexpected
-    exitcodes:
-      - 0
-      - 2
-    starttime: 5
-    startretries: 3
-    stopsignal: TERM
-    stoptime: 10
-    stdout: /tmp/taskmaster1.stdout
-    stderr: /tmp/taskmaster1.stderr
-    env:
-      STARTED_BY: taskmaster
-      ANSWER: 42
-    workingdir: /tmp
-    umask: 022
-  server:
-    cmd: "python3 -m http.server"
-    numprocs: 1
-    autostart: true
-    autorestart: unexpected
-    exitcodes:
-      - 0
-    starttime: 5
-    startretries: 3
-    stopsignal: USR1
-    stoptime: 10
-    stdout: /tmp/taskmaster2.stdout
-    stderr: /tmp/taskmaster2.stderr
-    env:
-      STARTED_BY: taskmaster
-      ANSWER: 42
-    workingdir: /tmp
-    umask: 077
+test:
+  cmd: "tail -f /dev/null"
+  numprocs: 8
+  autostart: true
+  autorestart: unexpected
+  exitcodes:
+    - 0
+    - 2
+  starttime: 5
+  startretries: 3
+  stopsignal: TERM
+  stoptime: 10
+  stdout: /tmp/taskmaster1.stdout
+  stderr: /tmp/taskmaster1.stderr
+  env:
+    STARTED_BY: taskmaster
+    ANSWER: 42
+  workingdir: /tmp
+  umask: 022
+server:
+  cmd: "python3 -m http.server"
+  numprocs: 1
+  autostart: true
+  autorestart: unexpected
+  exitcodes:
+    - 0
+  starttime: 5
+  startretries: 3
+  stopsignal: USR1
+  stoptime: 10
+  stdout: /tmp/taskmaster2.stdout
+  stderr: /tmp/taskmaster2.stderr
+  env:
+    STARTED_BY: taskmaster
+    ANSWER: 42
+  workingdir: /tmp
+  umask: 077

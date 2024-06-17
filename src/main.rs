@@ -7,11 +7,6 @@ use std::thread;
 use serde::Deserialize;
 
 #[derive(Debug, Deserialize)]
-struct Config {
-    programs: HashMap<String, Program>,
-}
-
-#[derive(Debug, Deserialize)]
 struct Program {
     cmd: String,
     numprocs: u32,
@@ -29,10 +24,9 @@ struct Program {
     env: Option<HashMap<String, String>>,
 }
 
-fn parsing() -> Config {
-    let config_content = fs::read_to_string("config.yml").expect("Failed to read config file");
-    let config: Config = serde_yaml::from_str(&config_content).expect("Failed to parse config");
-    config
+fn parsing() -> HashMap<String, Program> {
+    let config = fs::read_to_string("config.yml").expect("Failed to read config file");
+	serde_yaml::from_str(&config).expect("Failed to parse config")
 }
 
 fn start_process(program: &Program) -> Result<Child, std::io::Error> {
@@ -47,7 +41,7 @@ fn start_process(program: &Program) -> Result<Child, std::io::Error> {
         .spawn()
 }
 
-fn daemon(processes: Arc<Mutex<HashMap<String, Child>>>, config: Arc<Config>) {
+fn daemon(processes: Arc<Mutex<HashMap<String, Child>>>) {
     thread::spawn(move || {
         loop {
             {
@@ -68,7 +62,7 @@ fn daemon(processes: Arc<Mutex<HashMap<String, Child>>>, config: Arc<Config>) {
     });
 }
 
-fn shell(processes: Arc<Mutex<HashMap<String, Child>>>, config: Arc<Config>) {
+fn shell(programs: HashMap<String, Program>, processes: Arc<Mutex<HashMap<String, Child>>>) {
     loop {
         print!("> ");
         io::stdout().flush().expect("Flush error");
@@ -82,7 +76,7 @@ fn shell(processes: Arc<Mutex<HashMap<String, Child>>>, config: Arc<Config>) {
             "exit" | "quit" => break,
             "status" => {
                 let processes = processes.lock().unwrap();
-                for (program_name, _config_values) in &config.programs {
+                for (program_name, _program) in &programs {
                     if processes.contains_key(program_name) {
                         println!("{} status: running", program_name);
                     } else {
@@ -96,7 +90,7 @@ fn shell(processes: Arc<Mutex<HashMap<String, Child>>>, config: Arc<Config>) {
                     continue;
                 }
                 let program_name = cmd[1].to_string();
-                if let Some(program) = config.programs.get(&program_name) {
+                if let Some(program) = programs.get(&program_name) {
                     let mut processes = processes.lock().unwrap();
                     if processes.contains_key(&program_name) {
                         println!("Program {} is already running", program_name);
@@ -152,9 +146,8 @@ fn shell(processes: Arc<Mutex<HashMap<String, Child>>>, config: Arc<Config>) {
 
 fn main() {
     println!("Taskmaster");
-    let config = Arc::new(parsing());
     let processes = Arc::new(Mutex::new(HashMap::new()));
-    daemon(Arc::clone(&processes), Arc::clone(&config));
-    shell(Arc::clone(&processes), Arc::clone(&config));
+    daemon(Arc::clone(&processes));
+	shell(parsing(), processes);
     println!("Bye");
 }

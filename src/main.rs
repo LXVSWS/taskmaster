@@ -1,5 +1,6 @@
 mod shell;
 mod daemon;
+mod commands;
 
 use std::fs;
 use std::sync::{Arc, Mutex};
@@ -32,7 +33,8 @@ fn parsing() -> HashMap<String, Program> {
 fn main() {
     println!("Taskmaster");
     let processes = Arc::new(Mutex::new(HashMap::new()));
-    daemon::start(Arc::clone(&processes));
-	shell::start(parsing(), processes);
+    let programs = Arc::new(parsing());
+    daemon::start(Arc::clone(&processes), Arc::clone(&programs));
+    shell::start(programs, processes);
     println!("Bye");
 }

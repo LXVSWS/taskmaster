@@ -1,11 +1,11 @@
 use std::sync::{Arc, Mutex};
 use std::io::{self, Write};
 use std::collections::HashMap;
-use std::process::{Command, Stdio, Child};
-use std::fs::File;
+use std::process::Child;
 use crate::Program;
+use crate::commands::start_program;
 
-pub fn start(programs: HashMap<String, Program>, processes: Arc<Mutex<HashMap<String, Child>>>) {
+pub fn start(programs: Arc<HashMap<String, Program>>, processes: Arc<Mutex<HashMap<String, Child>>>) {
     loop {
         print!("> ");
         io::stdout().flush().expect("Flush error");
@@ -19,7 +19,7 @@ pub fn start(programs: HashMap<String, Program>, processes: Arc<Mutex<HashMap<St
             "exit" | "quit" => break,
             "status" => {
                 let processes = processes.lock().unwrap();
-                for (program_name, _program) in &programs {
+                for (program_name, _program) in programs.iter() {
                     if processes.contains_key(program_name) {
                         println!("{} status: running", program_name);
                     } else {
@@ -39,22 +39,14 @@ pub fn start(programs: HashMap<String, Program>, processes: Arc<Mutex<HashMap<St
                         println!("Program {} is already running", program_name);
                         continue;
                     }
-                    let mut command_parts = program.cmd.split_whitespace();
-                    let executable = command_parts.next().expect("Executable not found");
-                    let args: Vec<&str> = command_parts.collect();
-                    match Command::new(executable)
-                        .args(args)
-                        .stdin(Stdio::null())
-                        .stdout(File::create(&program.stdout).expect("Failed to create stdout file"))
-                        .stderr(File::create(&program.stderr).expect("Failed to create stderr file"))
-                        .spawn() {
-                            Ok(child) => {
-                                processes.insert(program_name.clone(), child);
-                                println!("Started {}", program_name);
-                            }
-                            Err(e) => {
-                                eprintln!("Failed to start {}: {}", program_name, e);
-                            }
+                    match start_program(program) {
+                        Ok(child) => {
+                            processes.insert(program_name.clone(), child);
+                            println!("Started {}", program_name);
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to start {}: {}", program_name, e);
+                        }
                     }
                 } else {
                     println!("Program not found");
@@ -100,22 +92,14 @@ pub fn start(programs: HashMap<String, Program>, processes: Arc<Mutex<HashMap<St
                             }
                         }
                     }
-                    let mut command_parts = program.cmd.split_whitespace();
-                    let executable = command_parts.next().expect("Executable not found");
-                    let args: Vec<&str> = command_parts.collect();
-                    match Command::new(executable)
-                        .args(args)
-                        .stdin(Stdio::null())
-                        .stdout(File::create(&program.stdout).expect("Failed to create stdout file"))
-                        .stderr(File::create(&program.stderr).expect("Failed to create stderr file"))
-                        .spawn() {
-                            Ok(child) => {
-                                processes.insert(program_name.clone(), child);
-                                println!("Started {}", program_name);
-                            }
-                            Err(e) => {
-                                eprintln!("Failed to start {}: {}", program_name, e);
-                            }
+                    match start_program(program) {
+                        Ok(child) => {
+                            processes.insert(program_name.clone(), child);
+                            println!("Started {}", program_name);
+                        }
+                        Err(e) => {
+                            eprintln!("Failed to start {}: {}", program_name, e);
+                        }
                     }
                 } else {
                     println!("Program not found");

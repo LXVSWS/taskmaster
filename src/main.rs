@@ -1,11 +1,13 @@
 mod shell;
 mod daemons;
 mod commands;
+mod logger;
 
 use std::fs;
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use serde::Deserialize;
+use crate::logger::Logger;
 
 #[derive(Debug, Deserialize, PartialEq)]
 pub struct Program {
@@ -32,9 +34,10 @@ fn parsing() -> HashMap<String, Program> {
 
 fn main() {
     println!("Taskmaster");
+	let logger = Arc::new(Logger::new("taskmaster.log").expect("Failed to create logger"));
     let processes = Arc::new(Mutex::new(HashMap::new()));
     let programs = Arc::new(Mutex::new(parsing()));
     daemons::start(Arc::clone(&programs), Arc::clone(&processes));
-    shell::start(Arc::clone(&programs), Arc::clone(&processes));
+    shell::start(Arc::clone(&programs), Arc::clone(&processes), Arc::clone(&logger));
     println!("Bye");
 }

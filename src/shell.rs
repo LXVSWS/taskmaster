@@ -4,8 +4,10 @@ use std::process::Child;
 use rustyline::{Editor, error::ReadlineError};
 use crate::Program;
 use crate::commands::start_program;
+use crate::logger::Logger;
 
-pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mutex<HashMap<String, Child>>>) {
+pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mutex<HashMap<String, Child>>>, logger: Arc<Logger>) {
+	logger.log("Main shell started").expect("Failed to log message");
     let mut rl = Editor::<()>::new().expect("Failed to create line editor");
     loop {
         match rl.readline("> ") {
@@ -43,6 +45,7 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
                                 Ok(child) => {
                                     processes.insert(program_name.clone(), child);
                                     println!("Started {}", program_name);
+									logger.log_formatted("Started", format_args!("{}", program_name)).expect("Failed to log message");
                                 }
                                 Err(e) => {
                                     eprintln!("Failed to start {}: {}", program_name, e);

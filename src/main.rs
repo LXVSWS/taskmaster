@@ -1,5 +1,5 @@
 mod shell;
-mod daemon;
+mod daemons;
 mod commands;
 
 use std::fs;
@@ -7,7 +7,7 @@ use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, PartialEq)]
 pub struct Program {
     cmd: String,
     numprocs: u32,
@@ -33,8 +33,8 @@ fn parsing() -> HashMap<String, Program> {
 fn main() {
     println!("Taskmaster");
     let processes = Arc::new(Mutex::new(HashMap::new()));
-    let programs = Arc::new(parsing());
-    daemon::start(Arc::clone(&processes), Arc::clone(&programs));
-    shell::start(programs, processes);
+    let programs = Arc::new(Mutex::new(parsing()));
+    daemons::start(Arc::clone(&programs), Arc::clone(&processes));
+    shell::start(Arc::clone(&programs), Arc::clone(&processes));
     println!("Bye");
 }

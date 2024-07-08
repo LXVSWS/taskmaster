@@ -4,9 +4,25 @@ use std::io::{self, Write};
 use std::thread;
 use std::process::Child;
 use crate::Program;
-use crate::commands::start_program;
+use crate::commands::{start_program, reload_config};
+use signal_hook::{consts::SIGHUP, iterator::Signals};
 
-pub fn start(processes: Arc<Mutex<HashMap<String, Child>>>, programs: Arc<HashMap<String, Program>>) {
+pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mutex<HashMap<String, Child>>>) {
+	let processes_clone = Arc::clone(&processes);
+    let programs_clone = Arc::clone(&programs);
+
+	thread::spawn(move || {
+        let mut signals = Signals::new(&[SIGHUP]).expect("Unable to create signal handler");
+        for signal in signals.forever() {
+            if signal == SIGHUP {
+                println!("Received SIGHUP, reloading config...");
+				print!("> ");
+				io::stdout().flush().expect("Flush error");
+                reload_config(&programs_clone, &processes_clone);
+            }
+        }
+    });
+
     thread::spawn(move || {
         loop {
             let mut processes_to_restart = Vec::new();
@@ -23,6 +39,7 @@ pub fn start(processes: Arc<Mutex<HashMap<String, Child>>>, programs: Arc<HashMa
                 });
             }
             for program_name in processes_to_restart {
+				let programs = programs.lock().unwrap();
                 if let Some(program) = programs.get(&program_name) {
                     match start_program(program) {
                         Ok(new_child) => {

@@ -5,7 +5,7 @@ use rustyline::{Editor, error::ReadlineError};
 use crate::Program;
 use crate::commands::start_program;
 
-pub fn start(programs: Arc<HashMap<String, Program>>, processes: Arc<Mutex<HashMap<String, Child>>>) {
+pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mutex<HashMap<String, Child>>>) {
     let mut rl = Editor::<()>::new().expect("Failed to create line editor");
     loop {
         match rl.readline("> ") {
@@ -15,10 +15,11 @@ pub fn start(programs: Arc<HashMap<String, Program>>, processes: Arc<Mutex<HashM
                 if cmd.is_empty() {
                     continue;
                 }
+                let mut processes = processes.lock().unwrap();
+                let programs = programs.lock().unwrap();
                 match cmd[0] {
                     "exit" | "quit" => break,
                     "status" => {
-                        let processes = processes.lock().unwrap();
                         for (program_name, _program) in programs.iter() {
                             if processes.contains_key(program_name) {
                                 println!("{} status: running", program_name);
@@ -34,7 +35,6 @@ pub fn start(programs: Arc<HashMap<String, Program>>, processes: Arc<Mutex<HashM
                         }
                         let program_name = cmd[1].to_string();
                         if let Some(program) = programs.get(&program_name) {
-                            let mut processes = processes.lock().unwrap();
                             if processes.contains_key(&program_name) {
                                 println!("Program {} is already running", program_name);
                                 continue;
@@ -58,7 +58,6 @@ pub fn start(programs: Arc<HashMap<String, Program>>, processes: Arc<Mutex<HashM
                             continue;
                         }
                         let program_name = cmd[1].to_string();
-                        let mut processes = processes.lock().unwrap();
                         if let Some(mut child) = processes.remove(&program_name) {
                             match child.kill() {
                                 Ok(_) => {
@@ -79,19 +78,18 @@ pub fn start(programs: Arc<HashMap<String, Program>>, processes: Arc<Mutex<HashM
                             continue;
                         }
                         let program_name = cmd[1].to_string();
-                        if let Some(program) = programs.get(&program_name) {
-                            let mut processes = processes.lock().unwrap();
-                            if let Some(mut child) = processes.remove(&program_name) {
-                                match child.kill() {
-                                    Ok(_) => {
-                                        println!("Stopped {}", program_name);
-                                    }
-                                    Err(e) => {
-                                        eprintln!("Failed to stop {}: {}", program_name, e);
-                                        processes.insert(program_name.clone(), child);
-                                    }
+                        if let Some(mut child) = processes.remove(&program_name) {
+                            match child.kill() {
+                                Ok(_) => {
+                                    println!("Stopped {}", program_name);
+                                }
+                                Err(e) => {
+                                    eprintln!("Failed to stop {}: {}", program_name, e);
+                                    processes.insert(program_name.clone(), child);
                                 }
                             }
+                        }
+                        if let Some(program) = programs.get(&program_name) {
                             match start_program(program) {
                                 Ok(child) => {
                                     processes.insert(program_name.clone(), child);

@@ -37,7 +37,7 @@ fn main() {
 	let logger = Arc::new(Logger::new("taskmaster.log").expect("Failed to create logger"));
     let processes = Arc::new(Mutex::new(HashMap::new()));
     let programs = Arc::new(Mutex::new(parsing()));
-    daemons::start(Arc::clone(&programs), Arc::clone(&processes));
+    daemons::start(Arc::clone(&programs), Arc::clone(&processes), Arc::clone(&logger));
     shell::start(Arc::clone(&programs), Arc::clone(&processes), Arc::clone(&logger));
     println!("Bye");
 }

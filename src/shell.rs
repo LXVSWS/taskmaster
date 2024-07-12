@@ -7,7 +7,6 @@ use crate::commands::start_program;
 use crate::logger::Logger;
 
 pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mutex<HashMap<String, Child>>>, logger: Arc<Logger>) {
-	logger.log("Main shell started").expect("Failed to log message");
     let mut rl = Editor::<()>::new().expect("Failed to create line editor");
     loop {
         match rl.readline("> ") {
@@ -44,8 +43,8 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
                             match start_program(program) {
                                 Ok(child) => {
                                     processes.insert(program_name.clone(), child);
-                                    println!("Started {}", program_name);
 									logger.log_formatted("Started", format_args!("{}", program_name)).expect("Failed to log message");
+									println!("Started {}", program_name);
                                 }
                                 Err(e) => {
                                     eprintln!("Failed to start {}: {}", program_name, e);
@@ -64,6 +63,7 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
                         if let Some(mut child) = processes.remove(&program_name) {
                             match child.kill() {
                                 Ok(_) => {
+									logger.log_formatted("Stopped", format_args!("{}", program_name)).expect("Failed to log message");
                                     println!("Stopped {}", program_name);
                                 }
                                 Err(e) => {
@@ -84,6 +84,7 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
                         if let Some(mut child) = processes.remove(&program_name) {
                             match child.kill() {
                                 Ok(_) => {
+									logger.log_formatted("Stopped", format_args!("{}", program_name)).expect("Failed to log message");
                                     println!("Stopped {}", program_name);
                                 }
                                 Err(e) => {
@@ -96,7 +97,8 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
                             match start_program(program) {
                                 Ok(child) => {
                                     processes.insert(program_name.clone(), child);
-                                    println!("Started {}", program_name);
+									logger.log_formatted("Restarted", format_args!("{}", program_name)).expect("Failed to log message");
+                                    println!("Restarted {}", program_name);
                                 }
                                 Err(e) => {
                                     eprintln!("Failed to start {}: {}", program_name, e);
@@ -124,7 +126,10 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
     let mut processes = processes.lock().unwrap();
     for (program_name, mut child) in processes.drain() {
         match child.kill() {
-            Ok(_) => println!("Killed {}", program_name),
+            Ok(_) => {
+				logger.log_formatted("Killed", format_args!("{}", program_name)).expect("Failed to log message");
+				println!("Killed {}", program_name);
+			}
             Err(e) => eprintln!("Failed to kill {}: {}", program_name, e),
         }
     }

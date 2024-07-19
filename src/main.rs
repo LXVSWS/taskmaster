@@ -6,6 +6,7 @@ mod logger;
 use std::fs;
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
+use std::process::Child;
 use serde::Deserialize;
 use crate::logger::Logger;
 
@@ -35,7 +36,7 @@ fn parsing() -> HashMap<String, Program> {
 fn main() {
     println!("Taskmaster");
 	let logger = Arc::new(Logger::new("taskmaster.log").expect("Failed to create logger"));
-    let processes = Arc::new(Mutex::new(HashMap::new()));
+    let processes = Arc::new(Mutex::new(HashMap::<String, Vec<Child>>::new()));
     let programs = Arc::new(Mutex::new(parsing()));
     daemons::start(Arc::clone(&programs), Arc::clone(&processes), Arc::clone(&logger));
     shell::start(Arc::clone(&programs), Arc::clone(&processes), Arc::clone(&logger));

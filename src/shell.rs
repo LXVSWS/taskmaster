@@ -6,7 +6,7 @@ use crate::Program;
 use crate::commands::start_program;
 use crate::logger::Logger;
 
-pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mutex<HashMap<String, Child>>>, logger: Arc<Logger>) {
+pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mutex<HashMap<String, Vec<Child>>>>, logger: Arc<Logger>) {
     let mut rl = Editor::<()>::new().expect("Failed to create line editor");
     loop {
         match rl.readline("> ") {
@@ -22,8 +22,8 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
                     "exit" | "quit" => break,
                     "status" => {
                         for (program_name, _program) in programs.iter() {
-                            if processes.contains_key(program_name) {
-                                println!("{} status: running", program_name);
+                            if let Some(instances) = processes.get(program_name) {
+                                println!("{} status: running ({} instances)", program_name, instances.len());
                             } else {
                                 println!("{} status: not running", program_name);
                             }
@@ -40,16 +40,21 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
                                 println!("Program {} is already running", program_name);
                                 continue;
                             }
-                            match start_program(program) {
-                                Ok(child) => {
-                                    processes.insert(program_name.clone(), child);
-									logger.log_formatted("Started", format_args!("{}", program_name)).expect("Failed to log message");
-									println!("Started {}", program_name);
-                                }
-                                Err(e) => {
-                                    eprintln!("Failed to start {}: {}", program_name, e);
+                            let mut instances = Vec::new();
+                            for i in 0..program.numprocs {
+                                match start_program(program) {
+                                    Ok(child) => {
+                                        instances.push(child);
+                                        logger.log_formatted("Started", format_args!("{} instance {}", program_name, i))
+                                            .expect("Failed to log message");
+                                        println!("Started {} instance {}", program_name, i);
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Failed to start {} instance {}: {}", program_name, i, e);
+                                    }
                                 }
                             }
+                            processes.insert(program_name.clone(), instances);
                         } else {
                             println!("Program not found");
                         }
@@ -60,15 +65,18 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
                             continue;
                         }
                         let program_name = cmd[1].to_string();
-                        if let Some(mut child) = processes.remove(&program_name) {
-                            match child.kill() {
-                                Ok(_) => {
-									logger.log_formatted("Stopped", format_args!("{}", program_name)).expect("Failed to log message");
-                                    println!("Stopped {}", program_name);
-                                }
-                                Err(e) => {
-                                    eprintln!("Failed to stop {}: {}", program_name, e);
-                                    processes.insert(program_name, child);
+                        if let Some(mut instances) = processes.remove(&program_name) {
+                            for (i, mut child) in instances.drain(..).enumerate() {
+                                match child.kill() {
+                                    Ok(_) => {
+                                        logger.log_formatted("Stopped", format_args!("{} instance {}", program_name, i))
+                                            .expect("Failed to log message");
+                                        println!("Stopped {} instance {}", program_name, i);
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Failed to stop {} instance {}: {}", program_name, i, e);
+                                        processes.entry(program_name.clone()).or_insert_with(Vec::new).push(child);
+                                    }
                                 }
                             }
                         } else {
@@ -81,29 +89,37 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
                             continue;
                         }
                         let program_name = cmd[1].to_string();
-                        if let Some(mut child) = processes.remove(&program_name) {
-                            match child.kill() {
-                                Ok(_) => {
-									logger.log_formatted("Stopped", format_args!("{}", program_name)).expect("Failed to log message");
-                                    println!("Stopped {}", program_name);
-                                }
-                                Err(e) => {
-                                    eprintln!("Failed to stop {}: {}", program_name, e);
-                                    processes.insert(program_name.clone(), child);
+                        if let Some(mut instances) = processes.remove(&program_name) {
+                            for (i, mut child) in instances.drain(..).enumerate() {
+                                match child.kill() {
+                                    Ok(_) => {
+                                        logger.log_formatted("Stopped", format_args!("{} instance {}", program_name, i))
+                                            .expect("Failed to log message");
+                                        println!("Stopped {} instance {}", program_name, i);
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Failed to stop {} instance {}: {}", program_name, i, e);
+                                        processes.entry(program_name.clone()).or_insert_with(Vec::new).push(child);
+                                    }
                                 }
                             }
                         }
                         if let Some(program) = programs.get(&program_name) {
-                            match start_program(program) {
-                                Ok(child) => {
-                                    processes.insert(program_name.clone(), child);
-									logger.log_formatted("Restarted", format_args!("{}", program_name)).expect("Failed to log message");
-                                    println!("Restarted {}", program_name);
-                                }
-                                Err(e) => {
-                                    eprintln!("Failed to start {}: {}", program_name, e);
+                            let mut instances = Vec::new();
+                            for i in 0..program.numprocs {
+                                match start_program(program) {
+                                    Ok(child) => {
+                                        instances.push(child);
+                                        logger.log_formatted("Restarted", format_args!("{} instance {}", program_name, i))
+                                            .expect("Failed to log message");
+                                        println!("Restarted {} instance {}", program_name, i);
+                                    }
+                                    Err(e) => {
+                                        eprintln!("Failed to start {} instance {}: {}", program_name, i, e);
+                                    }
                                 }
                             }
+                            processes.insert(program_name.clone(), instances);
                         } else {
                             println!("Program not found");
                         }
@@ -124,13 +140,16 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
     }
 
     let mut processes = processes.lock().unwrap();
-    for (program_name, mut child) in processes.drain() {
-        match child.kill() {
-            Ok(_) => {
-				logger.log_formatted("Killed", format_args!("{}", program_name)).expect("Failed to log message");
-				println!("Killed {}", program_name);
-			}
-            Err(e) => eprintln!("Failed to kill {}: {}", program_name, e),
+    for (program_name, mut instances) in processes.drain() {
+        for (i, mut child) in instances.drain(..).enumerate() {
+            match child.kill() {
+                Ok(_) => {
+                    logger.log_formatted("Killed", format_args!("{} instance {}", program_name, i))
+                        .expect("Failed to log message");
+                    println!("Killed {} instance {}", program_name, i);
+                }
+                Err(e) => eprintln!("Failed to kill {} instance {}: {}", program_name, i, e),
+            }
         }
     }
 }

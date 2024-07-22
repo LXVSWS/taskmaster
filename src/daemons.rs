@@ -19,9 +19,9 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
             if signal == SIGHUP {
                 logger_clone.log("SIGHUP received, reloading config").expect("Failed to log message");
                 println!("Received SIGHUP, reloading config...");
-                print!("> ");
+                reload_config(&programs_clone, &processes_clone, &logger_clone);
+				print!("> ");
                 io::stdout().flush().expect("Flush error");
-                reload_config(&programs_clone, &processes_clone);
             }
         }
     });

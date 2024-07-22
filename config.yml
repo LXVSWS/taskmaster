@@ -1,6 +1,6 @@
 test:
   cmd: "tail -f /dev/null"
-  numprocs: 8
+  numprocs: 3
   autostart: true
   autorestart: unexpected
   exitcodes:
@@ -20,7 +20,7 @@ test:
 server:
   cmd: "python3 -m http.server"
   numprocs: 1
-  autostart: true
+  autostart: false
   autorestart: unexpected
   exitcodes:
     - 0

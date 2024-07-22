@@ -36,8 +36,9 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
                     let mut i = 0;
                     while i < children.len() {
                         if let Ok(Some(status)) = children[i].try_wait() {
-                            logger.log_formatted("Process", format_args!("{} exited with status: {}", program_name, status)).expect("Failed to log message");
-                            println!("\nProcess {} exited with status: {}", program_name, status);
+							logger.log_formatted("Process", format_args!("{} instance {} exited with status: {}", program_name, i, status))
+                            .expect("Failed to log message");
+                        	println!("\nProcess {} instance {} exited with status: {}", program_name, i, status);
                             processes_to_restart.push(program_name.clone());
                             children.remove(i);
                         } else {
@@ -54,8 +55,8 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
                         Ok(new_child) => {
                             let mut processes = processes.lock().unwrap();
                             processes.entry(program_name.clone()).or_insert_with(Vec::new).push(new_child);
-                            logger.log_formatted("Restarted", format_args!("{}", program_name)).expect("Failed to log message");
-                            println!("Restarted {}", program_name);
+                            logger.log_formatted("Restarted ", format_args!("{} instance", program_name)).expect("Failed to log message");
+                            println!("Restarted {} instance", program_name);
                             print!("> ");
                             io::stdout().flush().expect("Flush error");
                         }

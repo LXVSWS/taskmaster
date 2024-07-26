@@ -29,24 +29,37 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
     thread::spawn(move || {
         loop {
             let mut processes_to_restart = Vec::new();
+			let mut processes_to_remove = Vec::new();
             {
                 let mut processes = processes.lock().unwrap();
-
+				let programs = programs.lock().unwrap();
                 for (program_name, children) in processes.iter_mut() {
-                    let mut i = 0;
-                    while i < children.len() {
-                        if let Ok(Some(status)) = children[i].try_wait() {
-							logger.log_formatted("Process", format_args!("{} instance {} exited with status: {}", program_name, i, status))
-                            .expect("Failed to log message");
-                        	println!("\nProcess {} instance {} exited with status: {}", program_name, i, status);
-                            processes_to_restart.push(program_name.clone());
-                            children.remove(i);
-                        } else {
-                            i += 1;
-                        }
-                    }
+					if let Some(program) = programs.get(program_name) {
+						let mut i = 0;
+						while i < children.len() {
+							if let Ok(Some(status)) = children[i].try_wait() {
+								let exit_code = status.code().unwrap_or(-1);
+								let expected_exit = program.exitcodes.contains(&exit_code);
+								if program.autorestart == "always" || (program.autorestart == "unexpected" && !expected_exit) {
+									processes_to_restart.push(program_name.clone());
+							 	} else {
+									processes_to_remove.push((program_name.clone(), exit_code));
+								}
+								children.remove(i);
+							} else {
+								i += 1;
+							}
+						}
+					}
                 }
             }
+
+			for (program_name, exit_code) in processes_to_remove {
+				let logger = logger.clone();
+				logger.log_formatted("Program", format_args!("{} exited with status: {}", program_name, exit_code))
+					.expect("Failed to log message");
+				println!("\nProgram {} exited with status: {}", program_name, exit_code);
+			}
 
             for program_name in processes_to_restart {
                 let programs = programs.lock().unwrap();

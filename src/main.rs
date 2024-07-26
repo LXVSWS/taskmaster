@@ -10,7 +10,7 @@ use std::process::Child;
 use serde::Deserialize;
 use crate::logger::Logger;
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq, Clone)]
 pub struct Program {
     cmd: String,
     numprocs: u32,

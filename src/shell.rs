@@ -21,9 +21,13 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
                 match cmd[0] {
                     "exit" | "quit" => break,
                     "status" => {
-                        for (program_name, _program) in programs.iter() {
+                        for program_name in programs.keys() {
                             if let Some(instances) = processes.get(program_name) {
-                                println!("{} status: running ({} instances)", program_name, instances.len());
+                                if instances.is_empty() {
+                                    println!("{} status: exited", program_name);
+                                } else {
+                                    println!("{} status: running ({} instances)", program_name, instances.len());
+                                }
                             } else {
                                 println!("{} status: not running", program_name);
                             }
@@ -31,34 +35,34 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
                     }
                     "start" => {
                         if cmd.len() < 2 {
-                            println!("Please specify a program to start");
-                            continue;
-                        }
-                        let program_name = cmd[1].to_string();
-                        if let Some(program) = programs.get(&program_name) {
-                            if processes.contains_key(&program_name) {
-                                println!("Program {} is already running", program_name);
-                                continue;
-                            }
-                            let mut instances = Vec::new();
-                            for i in 0..program.numprocs {
-                                match start_program(program) {
-                                    Ok(child) => {
-                                        instances.push(child);
-                                        logger.log_formatted("Started", format_args!("{} instance {}", program_name, i))
-                                            .expect("Failed to log message");
-                                        println!("Started {} instance {}", program_name, i);
-                                    }
-                                    Err(e) => {
-                                        eprintln!("Failed to start {} instance {}: {}", program_name, i, e);
-                                    }
-                                }
-                            }
-                            processes.insert(program_name.clone(), instances);
-                        } else {
-                            println!("Program not found");
-                        }
-                    }
+							println!("Please specify a program to start");
+							continue;
+						}
+						let program_name = cmd[1].to_string();
+						let program = match programs.get(&program_name) {
+							Some(program) => program,
+							None => {
+								println!("Program not found");
+								continue;
+							}
+						};
+						processes.remove(&program_name);
+						let mut instances = Vec::new();
+						for i in 0..program.numprocs {
+							match start_program(program) {
+								Ok(child) => {
+									instances.push(child);
+									logger.log_formatted("Started", format_args!("{} instance {}", program_name, i))
+										.expect("Failed to log message");
+									println!("Started {} instance {}", program_name, i);
+								}
+								Err(e) => {
+									eprintln!("Failed to start {} instance {}: {}", program_name, i, e);
+								}
+							}
+						}
+						processes.insert(program_name, instances);
+					}
                     "stop" => {
                         if cmd.len() < 2 {
                             println!("Please specify a program to stop");

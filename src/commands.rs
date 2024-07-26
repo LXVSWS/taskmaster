@@ -8,14 +8,20 @@ pub fn start_program(program: &Program) -> Result<Child, std::io::Error> {
     let mut command_parts = program.cmd.split_whitespace();
     let executable = command_parts.next().expect("Executable not found");
     let args: Vec<&str> = command_parts.collect();
-    Command::new(executable)
+    let mut command = Command::new(executable);
+    command
         .args(args)
         .stdin(Stdio::null())
         .stdout(File::create(&program.stdout)?)
         .stderr(File::create(&program.stderr)?)
-		.current_dir(&program.workingdir)
-        .spawn()
+		.current_dir(&program.workingdir);
+
+    if let Some(ref env) = program.env {
+            command.envs(env);
+    };
+    command.spawn()
 }
+
 
 pub fn autostart_programs(programs: &Arc<Mutex<HashMap<String, Program>>>, processes: &Arc<Mutex<HashMap<String, Vec<Child>>>>, logger: &Arc<Logger>) {
     let programs = programs.lock().unwrap();

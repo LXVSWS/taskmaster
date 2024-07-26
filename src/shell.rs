@@ -39,6 +39,10 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
 							continue;
 						}
 						let program_name = cmd[1].to_string();
+						if processes.contains_key(&program_name) {
+                            println!("Program {} is already running", program_name);
+                            continue;
+                        }
 						let program = match programs.get(&program_name) {
 							Some(program) => program,
 							None => {
@@ -46,7 +50,6 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
 								continue;
 							}
 						};
-						processes.remove(&program_name);
 						let mut instances = Vec::new();
 						for i in 0..program.numprocs {
 							match start_program(program) {

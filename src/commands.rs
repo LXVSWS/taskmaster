@@ -13,6 +13,7 @@ pub fn start_program(program: &Program) -> Result<Child, std::io::Error> {
         .stdin(Stdio::null())
         .stdout(File::create(&program.stdout)?)
         .stderr(File::create(&program.stderr)?)
+		.current_dir(&program.workingdir)
         .spawn()
 }
 

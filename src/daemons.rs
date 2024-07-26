@@ -60,7 +60,6 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
             }
 
             for (program_name, exit_code) in processes_to_remove {
-                let logger = logger.clone();
                 logger.log_formatted("Program", format_args!("{} exited with status: {}", program_name, exit_code))
                     .expect("Failed to log message");
                 println!("\nProgram {} exited with status: {}", program_name, exit_code);

@@ -29,12 +29,11 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
     thread::spawn(move || {
         loop {
             let mut processes_to_restart = Vec::new();
-            let mut processes_to_remove = Vec::new();
-            let mut programs_to_remove = Vec::new();
 
             {
                 let mut processes = processes.lock().unwrap();
                 let programs = programs.lock().unwrap();
+
                 for (program_name, children) in processes.iter_mut() {
                     if let Some(program) = programs.get(program_name) {
                         let mut i = 0;
@@ -42,54 +41,40 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
                             if let Ok(Some(status)) = children[i].try_wait() {
                                 let exit_code = status.code().unwrap_or(-1);
                                 let expected_exit = program.exitcodes.contains(&exit_code);
+                                logger.log_formatted("Program", format_args!("{} exited with status: {}", program_name, exit_code))
+                                    .expect("Failed to log message");
+                                println!("\nProgram {} exited with status: {}", program_name, exit_code);
+                                print!("> ");
+                                io::stdout().flush().expect("Flush error");
+
                                 if program.autorestart == "always" || (program.autorestart == "unexpected" && !expected_exit) {
-                                    processes_to_restart.push(program_name.clone());
-                                } else {
-                                    processes_to_remove.push((program_name.clone(), exit_code));
+                                    processes_to_restart.push((program_name.clone(), i, program.clone()));
                                 }
+
                                 children.remove(i);
                             } else {
                                 i += 1;
                             }
                         }
-                        if children.is_empty() {
-                            programs_to_remove.push(program_name.clone());
-                        }
                     }
                 }
+                processes.retain(|_, children| !children.is_empty());
             }
 
-            for (program_name, exit_code) in processes_to_remove {
-                logger.log_formatted("Program", format_args!("{} exited with status: {}", program_name, exit_code))
-                    .expect("Failed to log message");
-                println!("\nProgram {} exited with status: {}", program_name, exit_code);
-                print!("> ");
-                io::stdout().flush().expect("Flush error");
-            }
-
-            for program_name in processes_to_restart {
-                let programs = programs.lock().unwrap();
-                if let Some(program) = programs.get(&program_name) {
-                    match start_program(program) {
-                        Ok(new_child) => {
-                            let mut processes = processes.lock().unwrap();
-                            processes.entry(program_name.clone()).or_insert_with(Vec::new).push(new_child);
-                            logger.log_formatted("Restarted ", format_args!("{} instance", program_name)).expect("Failed to log message");
-                            println!("Restarted {} instance", program_name);
-                            print!("> ");
-                            io::stdout().flush().expect("Flush error");
-                        }
-                        Err(e) => {
-                            eprintln!("Failed to restart {}: {}", program_name, e);
-                        }
+            for (program_name, _, program) in processes_to_restart {
+                match start_program(&program) {
+                    Ok(new_child) => {
+                        let mut processes = processes.lock().unwrap();
+                        processes.entry(program_name.clone()).or_insert_with(Vec::new).push(new_child);
+                        logger.log_formatted("Restarted", format_args!("{} instance", program_name))
+                            .expect("Failed to log message");
+                        println!("Restarted {} instance", program_name);
+                        print!("> ");
+                        io::stdout().flush().expect("Flush error");
                     }
-                }
-            }
-
-            {
-                let mut processes = processes.lock().unwrap();
-                for program_name in programs_to_remove {
-                    processes.remove(&program_name);
+                    Err(e) => {
+                        eprintln!("Failed to restart {}: {}", program_name, e);
+                    }
                 }
             }
 

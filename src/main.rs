@@ -44,7 +44,7 @@ fn parsing() -> HashMap<String, Program> {
 fn main() {
     println!("Taskmaster");
 	let logger = Arc::new(Logger::new("taskmaster.log").expect("Failed to create logger"));
-    let processes = Arc::new(Mutex::new(HashMap::<String, Vec<Child>>::new()));
+    let processes = Arc::new(Mutex::new(HashMap::<String, Vec<ProcessInfo>>::new()));
     let programs = Arc::new(Mutex::new(parsing()));
     commands::autostart_programs(&programs, &processes, &logger);
     daemons::start(programs.clone(), processes.clone(), logger.clone());

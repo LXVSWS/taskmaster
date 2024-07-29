@@ -2,13 +2,13 @@ use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::io::{self, Write};
 use std::thread;
-use std::process::Child;
 use crate::Program;
 use crate::Logger;
 use crate::commands::{start_program, reload_config};
+use crate::ProcessInfo;
 use signal_hook::{consts::SIGHUP, iterator::Signals};
 
-pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mutex<HashMap<String, Vec<Child>>>>, logger: Arc<Logger>) {
+pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mutex<HashMap<String, Vec<ProcessInfo>>>>, logger: Arc<Logger>) {
     let processes_clone = Arc::clone(&processes);
     let programs_clone = Arc::clone(&programs);
     let logger_clone = Arc::clone(&logger);
@@ -38,7 +38,7 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
                     if let Some(program) = programs.get(program_name) {
                         let mut i = 0;
                         while i < children.len() {
-                            if let Ok(Some(status)) = children[i].try_wait() {
+                            if let Ok(Some(status)) = children[i].child.try_wait() {
                                 let exit_code = status.code().unwrap_or(-1);
                                 let expected_exit = program.exitcodes.contains(&exit_code);
                                 logger.log_formatted("Program", format_args!("{} exited with status: {}", program_name, exit_code))

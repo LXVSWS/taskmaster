@@ -8,6 +8,7 @@ use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::process::Child;
 use serde::Deserialize;
+use std::time::Instant;
 use crate::logger::Logger;
 
 #[derive(Debug, Deserialize, PartialEq, Clone)]
@@ -28,6 +29,13 @@ pub struct Program {
     env: Option<HashMap<String, String>>,
 }
 
+pub struct ProcessInfo {
+    pub child: Child,
+    pub restart_attempts: u32,
+    pub start_time: Instant,
+    pub time_elapsed_since_stop: Option<Instant>,
+}
+
 fn parsing() -> HashMap<String, Program> {
     let config = fs::read_to_string("config.yml").expect("Failed to read config file");
 	serde_yaml::from_str(&config).expect("Failed to parse config")
@@ -38,11 +46,8 @@ fn main() {
 	let logger = Arc::new(Logger::new("taskmaster.log").expect("Failed to create logger"));
     let processes = Arc::new(Mutex::new(HashMap::<String, Vec<Child>>::new()));
     let programs = Arc::new(Mutex::new(parsing()));
-    let programs_clone = Arc::clone(&programs);
-    let processes_clone = Arc::clone(&processes);
-    let logger_clone = Arc::clone(&logger);
-    commands::autostart_programs(&programs_clone, &processes_clone, &logger_clone);
-    daemons::start(programs_clone, processes_clone, logger_clone);
+    commands::autostart_programs(&programs, &processes, &logger);
+    daemons::start(programs.clone(), processes.clone(), logger.clone());
     shell::start(programs, processes, logger);
     println!("Bye");
 }

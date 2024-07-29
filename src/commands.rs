@@ -15,7 +15,6 @@ pub fn start_program(program: &Program) -> Result<Child, std::io::Error> {
         .stdout(File::create(&program.stdout)?)
         .stderr(File::create(&program.stderr)?)
 		.current_dir(&program.workingdir);
-
     if let Some(ref env) = program.env {
             command.envs(env);
     };

@@ -1,5 +1,6 @@
 use std::fs::File;
 use std::process::{Command, Stdio};
+use std::io::{self, Write};
 use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::time::Instant;
@@ -26,6 +27,7 @@ pub fn start_program(program: &Program) -> Result<ProcessInfo, std::io::Error> {
         restart_attempts: 0,
         start_time: Instant::now(),
         time_elapsed_since_stop: None,
+		successfully_started: false
     })
 }
 
@@ -39,6 +41,9 @@ pub fn autostart_programs(programs: &Arc<Mutex<HashMap<String, Program>>>, proce
                 match start_program(program) {
                     Ok(process_info) => {
                         processes.entry(name.clone()).or_insert_with(Vec::new).push(process_info);
+						if let Some(last_process_info) = processes.get_mut(name).and_then(|v| v.last_mut()) {
+                            check_running_time(name, last_process_info, program.starttime.into(), &logger);
+                        }
                         logger.log_formatted("Started", format_args!("{} instance {}", name, i))
                             .expect("Failed to log message");
                         println!("Started {} instance {}", name, i);
@@ -94,8 +99,11 @@ pub fn reload_config(programs: &Arc<Mutex<HashMap<String, Program>>>, processes:
         if program.autostart && (!processes.contains_key(name) || processes.get(name).unwrap().is_empty()) {
             for i in 0..program.numprocs {
                 match start_program(program) {
-                    Ok(child) => {
-                        processes.entry(name.clone()).or_insert_with(Vec::new).push(child);
+                    Ok(process_info) => {
+                        processes.entry(name.clone()).or_insert_with(Vec::new).push(process_info);
+						if let Some(last_process_info) = processes.get_mut(name).and_then(|v| v.last_mut()) {
+                            check_running_time(name, last_process_info, program.starttime.into(), &logger);
+                        }
                         logger.log_formatted("Started", format_args!("{} instance {}", name, i))
                             .expect("Failed to log message");
                         println!("Started {} instance {}", name, i);
@@ -106,5 +114,17 @@ pub fn reload_config(programs: &Arc<Mutex<HashMap<String, Program>>>, processes:
                 }
             }
         }
+    }
+}
+
+pub fn check_running_time(program_name: &str, process_info: &mut ProcessInfo, starttime: u64, logger: &Arc<Logger>) {
+    let elapsed_time = process_info.start_time.elapsed().as_secs();
+    if !process_info.successfully_started && elapsed_time >= starttime {
+        let message = format!("{} successfully started ({} seconds)", program_name, elapsed_time);
+        println!("{}", message);
+        logger.log(&message).expect("Failed to log message");
+		print!("> ");
+		io::stdout().flush().expect("Flush error");
+        process_info.successfully_started = true;
     }
 }

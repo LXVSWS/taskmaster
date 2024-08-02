@@ -6,6 +6,7 @@ use crate::Program;
 use crate::Logger;
 use crate::commands::{start_program, reload_config};
 use crate::ProcessInfo;
+use crate::commands::check_running_time;
 use signal_hook::{consts::SIGHUP, iterator::Signals};
 
 pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mutex<HashMap<String, Vec<ProcessInfo>>>>, logger: Arc<Logger>) {
@@ -46,13 +47,12 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
                                 println!("\nProgram {} exited with status: {}", program_name, exit_code);
                                 print!("> ");
                                 io::stdout().flush().expect("Flush error");
-
                                 if program.autorestart == "always" || (program.autorestart == "unexpected" && !expected_exit) {
                                     processes_to_restart.push((program_name.clone(), i, program.clone()));
                                 }
-
                                 children.remove(i);
                             } else {
+								check_running_time(program_name, &mut children[i], program.starttime.into(), &logger);
                                 i += 1;
                             }
                         }

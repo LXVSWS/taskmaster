@@ -34,6 +34,7 @@ pub struct ProcessInfo {
     pub restart_attempts: u32,
     pub start_time: Instant,
     pub time_elapsed_since_stop: Option<Instant>,
+	pub successfully_started: bool
 }
 
 fn parsing() -> HashMap<String, Program> {

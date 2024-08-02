@@ -112,21 +112,42 @@ pub fn reload_config(programs: &Arc<Mutex<HashMap<String, Program>>>, processes:
 
 	for (name, program) in programs.iter() {
         if program.autostart && (!processes.contains_key(name) || processes.get(name).unwrap().is_empty()) {
+            let mut instances = Vec::new();
             for i in 0..program.numprocs {
-                match start_program(program) {
-                    Ok(process_info) => {
-                        processes.entry(name.clone()).or_insert_with(Vec::new).push(process_info);
-						if let Some(last_process_info) = processes.get_mut(name).and_then(|v| v.last_mut()) {
-                            check_running_time(name, last_process_info, program.starttime.into(), &logger);
+                let mut attempts = 0;
+                while attempts < program.startretries {
+                    match start_program(program) {
+                        Ok(process_info) => {
+                            instances.push(process_info);
+                            if let Some(last_process_info) = instances.last_mut() {
+                                check_running_time(name, last_process_info, program.starttime.into(), &logger);
+                            }
+                            logger.log_formatted("Started", format_args!("{} instance {}", name, i))
+                                .expect("Failed to log message");
+                            println!("Started {} instance {}", name, i);
+                            break;
                         }
-                        logger.log_formatted("Started", format_args!("{} instance {}", name, i))
-                            .expect("Failed to log message");
-                        println!("Started {} instance {}", name, i);
-                    }
-                    Err(e) => {
-                        eprintln!("Failed to start {} instance {}: {}", name, i, e);
+                        Err(e) => {
+                            eprintln!("Failed to start {} instance {}: {}", name, i, e);
+                            attempts += 1;
+                            if attempts < program.startretries {
+                                logger.log_formatted("Retry", format_args!("Retrying to start {} instance {} (attempt {}/{})", name, i, attempts + 1, program.startretries))
+                                    .expect("Failed to log message");
+                                eprintln!("Retrying to start {} instance {} (attempt {}/{})", name, i, attempts + 1, program.startretries);
+                            }
+                        }
                     }
                 }
+
+                if attempts >= program.startretries {
+                    logger.log_formatted("Failed", format_args!("Failed to start {} instance {} after {} attempts", name, i, program.startretries))
+                        .expect("Failed to log message");
+                    eprintln!("Failed to start {} instance {} after {} attempts", name, i, program.startretries);
+                }
+            }
+
+            if !instances.is_empty() {
+                processes.insert(name.clone(), instances);
             }
         }
     }

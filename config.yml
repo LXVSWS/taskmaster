@@ -1,5 +1,5 @@
 test:
-  cmd: "tail -f /dev/null"
+  cmd: "efseafesafferf"
   numprocs: 3
   autostart: true
   autorestart: unexpected

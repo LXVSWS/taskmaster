@@ -31,7 +31,6 @@ pub struct Program {
 
 pub struct ProcessInfo {
     pub child: Child,
-    pub restart_attempts: u32,
     pub start_time: Instant,
     pub time_elapsed_since_stop: Option<Instant>,
 	pub successfully_started: bool

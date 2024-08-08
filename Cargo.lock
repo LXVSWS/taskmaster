@@ -355,6 +355,7 @@ dependencies = [
 name = "taskmaster"
 version = "0.1.0"
 dependencies = [
+ "libc",
  "rustyline",
  "serde",
  "serde_yaml",

@@ -1,5 +1,5 @@
 test:
-  cmd: "mkdir test"
+  cmd: "tail -f /dev/null"
   numprocs: 3
   autostart: true
   autorestart: unexpected

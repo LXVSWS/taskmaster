@@ -7,7 +7,7 @@ use std::time::Instant;
 use crate::{parsing, Program, Logger};
 use crate::ProcessInfo;
 use std::os::unix::process::CommandExt;
-use libc;
+use libc::{umask};
 
 pub fn start_program(program: &Program) -> Result<ProcessInfo, std::io::Error> {
     let mut command_parts = program.cmd.split_whitespace();
@@ -24,12 +24,9 @@ pub fn start_program(program: &Program) -> Result<ProcessInfo, std::io::Error> {
             command.envs(env);
     };
     let new_umask = u16::from_str_radix(&program.umask, 8).expect("Failed to parse umask");
-
     unsafe {
         command.pre_exec(move || {
-            println!("Setting umask to: {:o}", new_umask);  // Log before setting umask
-            libc::umask(new_umask); // Appel direct de libc::umask sans fonction intermédiaire
-            println!("Umask set to: {:o}", new_umask);  // Log after setting umask
+            umask(new_umask.into());
             Ok(())
         });
     }

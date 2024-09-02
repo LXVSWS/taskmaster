@@ -21,7 +21,7 @@ pub fn start_program(program: &Program) -> Result<ProcessInfo, std::io::Error> {
         .stderr(File::create(&program.stderr)?)
 		.current_dir(&program.workingdir);
     if let Some(ref env) = program.env {
-            command.envs(env);
+        command.envs(env);
     };
     let new_umask = u16::from_str_radix(&program.umask, 8).expect("Failed to parse umask");
     unsafe {

@@ -22,7 +22,7 @@ pub struct Program {
     exitcodes: Vec<i32>,
     startretries: u32,
     starttime: u32,
-    stopsignal: String,
+    stopsignal: i32,
     stoptime: u32,
     stdout: String,
     stderr: String,

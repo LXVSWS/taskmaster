@@ -33,7 +33,8 @@ pub struct ProcessInfo {
     pub child: Child,
     pub start_time: Instant,
     pub time_elapsed_since_stop: Option<Instant>,
-	pub successfully_started: bool
+	pub successfully_started: bool,
+	pub stopped_by_signal: bool
 }
 
 fn parsing() -> HashMap<String, Program> {

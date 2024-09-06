@@ -10,7 +10,7 @@ test:
   starttime: 5
   startretries: 3
   stopsignal: 26
-  stoptime: 2
+  stoptime: 5
   stdout: /tmp/taskmaster1.stdout
   stderr: /tmp/taskmaster1.stderr
   env:

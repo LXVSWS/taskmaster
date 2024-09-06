@@ -35,7 +35,8 @@ pub fn start_program(program: &Program) -> Result<ProcessInfo, std::io::Error> {
         child,
         start_time: Instant::now(),
         time_elapsed_since_stop: None,
-		successfully_started: false
+		successfully_started: false,
+		stopped_by_signal: false
     })
 }
 

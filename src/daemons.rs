@@ -2,7 +2,7 @@ use std::sync::{Arc, Mutex};
 use std::collections::HashMap;
 use std::io::{self, Write};
 use std::thread;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 use crate::Program;
 use crate::Logger;
 use crate::commands::{start_program, reload_config};
@@ -25,6 +25,7 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
 		}).collect();
 		let mut signals = Signals::new(&all_signals).expect("Unable to create signal handler");
         for signal in signals.forever() {
+			io::stdout().flush().expect("Flush error");
 			if signal == libc::SIGHUP {
                 logger_clone.log("SIGHUP received, reloading config").expect("Failed to log message");
                 println!("Received SIGHUP, reloading config...");
@@ -37,13 +38,32 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
 				for (name, program) in programs.iter() {
 					if signal == program.stopsignal {
 						logger_clone
-							.log(&format!("Received {} for program '{}', stopping...", signal, name))
+							.log(&format!("Signal {} received, gracefully stopping {} in {} seconds...", signal, name, program.stoptime))
 							.expect("Failed to log message");
-						println!("Gracefully stopping program '{}' in {} seconds...", name, program.stoptime);
-						print!("> ");
-						io::stdout().flush().expect("Flush error");
-						thread::sleep(Duration::from_secs(program.stoptime.into()));
-						// integrate stopping childs
+						println!("Signal {} received, gracefully stopping {} in {} seconds...", signal, name, program.stoptime);
+						let processes_clone = Arc::clone(&processes_clone);
+						let logger_clone = Arc::clone(&logger_clone);
+						let name = name.clone();
+						let stoptime = program.stoptime;
+						thread::spawn(move || {
+							thread::sleep(Duration::from_secs(stoptime.into()));
+							if let Some(instances) = processes_clone.lock().unwrap().get_mut(&name) {
+								for (i, process_info) in instances.iter_mut().enumerate() {
+									if let Err(e) = process_info.child.kill() {
+										eprintln!("Failed to stop child process for {}, instance {}: {}", name, i, e);
+									} else {
+										process_info.time_elapsed_since_stop = Some(Instant::now());
+										process_info.stopped_by_signal = true;
+										logger_clone
+											.log(&format!("Stopped {} instance {}", name, i))
+											.expect("Failed to log message");
+										println!("Stopped {} instance {}", name, i);
+									}
+								}
+							}
+							print!("> ");
+							io::stdout().flush().expect("Flush error");
+						});
 					}
 				}
         	}
@@ -53,7 +73,6 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
     thread::spawn(move || {
         loop {
             let mut processes_to_restart = Vec::new();
-
             {
                 let mut processes = processes.lock().unwrap();
                 let programs = programs.lock().unwrap();
@@ -65,14 +84,16 @@ pub fn start(programs: Arc<Mutex<HashMap<String, Program>>>, processes: Arc<Mute
                             if let Ok(Some(status)) = children[i].child.try_wait() {
                                 let exit_code = status.code().unwrap_or(-1);
                                 let expected_exit = program.exitcodes.contains(&exit_code);
-                                logger.log_formatted("Program", format_args!("{} exited with status: {}", program_name, exit_code))
-                                    .expect("Failed to log message");
-                                println!("\nProgram {} exited with status: {}", program_name, exit_code);
-                                print!("> ");
-                                io::stdout().flush().expect("Flush error");
-                                if program.autorestart == "always" || (program.autorestart == "unexpected" && !expected_exit) {
-                                    processes_to_restart.push((program_name.clone(), i, program.clone()));
-                                }
+								if !children[i].stopped_by_signal {
+									logger.log_formatted("Program", format_args!("{} exited with status: {}", program_name, exit_code))
+										.expect("Failed to log message");
+									println!("Program {} exited with status: {}", program_name, exit_code);
+									print!("> ");
+									io::stdout().flush().expect("Flush error");
+									if program.autorestart == "always" || (program.autorestart == "unexpected" && !expected_exit) {
+										processes_to_restart.push((program_name.clone(), i, program.clone()));
+									}
+								}
                                 children.remove(i);
                             } else {
 								check_running_time(program_name, &mut children[i], program.starttime.into(), &logger);
